@@ -94,7 +94,7 @@ def main(_):
             ################################
             image = open(FLAGS.test_path, 'rb').read()
             image = tf.image.decode_jpeg(image, channels=3)
-            processed_image = image_preprocessing_fn(image, test_image_s ize, test_image_size)
+            processed_image = image_preprocessing_fn(image, test_image_size, test_image_size)
             processed_images = tf.expand_dims(processed_image, 0)
             
 	    #############################################
