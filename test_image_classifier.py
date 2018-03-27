@@ -10,7 +10,15 @@ from nets import nets_factory
 from preprocessing import preprocessing_factory
 from datasets import imagenet
 slim = tf.contrib.slim
+'''
+usage for test_image_classifier.py
 
+python test_image_classifier.py \
+--checkpoint_path={your checkpoint path or ckpt file} \
+--test_path={your test path} \
+--num_classes={your class classifier} \
+--model_name={your model name}
+'''
 tf.app.flags.DEFINE_string(
     'master', '', 'The address of the TensorFlow master to use.')
 
