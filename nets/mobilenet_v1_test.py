@@ -511,7 +511,7 @@ class MobilenetV1Test(tf.test.TestCase):
     logits, _ = mobilenet_v1.mobilenet_v1(images,
                                           num_classes=num_classes,
                                           spatial_squeeze=False)
-
+    writer = tf.summary.FileWriter("./logs_mobilenet_v1", graph=tf.get_default_graph())
     with self.test_session() as sess:
       tf.global_variables_initializer().run()
       logits_out = sess.run(logits)

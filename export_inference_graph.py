@@ -104,20 +104,42 @@ def main(_):
     raise ValueError('You must supply the path to save to with --output_file')
   tf.logging.set_verbosity(tf.logging.INFO)
   with tf.Graph().as_default() as graph:
+      
+    ######################
+    # Select the dataset #
+    ######################
     dataset = dataset_factory.get_dataset(FLAGS.dataset_name, 'train',
                                           FLAGS.dataset_dir)
+    ####################
+    # Select the model #
+    ####################
     network_fn = nets_factory.get_network_fn(
         FLAGS.model_name,
         num_classes=(dataset.num_classes - FLAGS.labels_offset),
         is_training=FLAGS.is_training)
+    
+    ##########################
+    # Define the placeholder #
+    ##########################
     image_size = FLAGS.image_size or network_fn.default_image_size
     placeholder = tf.placeholder(name='input', dtype=tf.float32,
                                  shape=[FLAGS.batch_size, image_size,
                                         image_size, 3])
+    ####################
+    # Define the model #
+    ####################
     network_fn(placeholder)
+    
     graph_def = graph.as_graph_def()
     with gfile.GFile(FLAGS.output_file, 'wb') as f:
       f.write(graph_def.SerializeToString())
+    
+    ########################
+    # print the operations #
+    ########################  
+    ops = graph.get_operations()
+    for op in ops:
+        print(op.name)  
 
 
 if __name__ == '__main__':

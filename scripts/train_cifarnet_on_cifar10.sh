@@ -22,13 +22,13 @@
 # Usage:
 # cd slim
 # ./scripts/train_cifarnet_on_cifar10.sh
-set -e
+#set -e
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=/tmp/cifarnet-model
+TRAIN_DIR=./tmp/cifarnet-model
 
 # Where the dataset is saved to.
-DATASET_DIR=/tmp/cifar10
+DATASET_DIR=/workspace/zhangbin/dataset_robin/cifar10
 
 # Download the dataset
 python download_and_convert_data.py \
@@ -52,7 +52,9 @@ python train_image_classifier.py \
   --learning_rate=0.1 \
   --learning_rate_decay_factor=0.1 \
   --num_epochs_per_decay=200 \
-  --weight_decay=0.004
+  --weight_decay=0.004  \
+  --clone_on_cpu=True
+
 
 # Run evaluation.
 python eval_image_classifier.py \

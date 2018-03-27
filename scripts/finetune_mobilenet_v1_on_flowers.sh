@@ -25,10 +25,10 @@
 #set -e
 
 # Where the pre-trained InceptionV1 checkpoint is saved to.
-PRETRAINED_CHECKPOINT_DIR=./tmp/checkpoints/inception_v1
+PRETRAINED_CHECKPOINT_DIR=./tmp/checkpoints/mobilenet_v1_1.0_224
 
 # Where the training (fine-tuned) checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/flowers-models/inception_v1
+TRAIN_DIR=./tmp/flowers-models/mobilenet_v1
 
 # Where the dataset is saved to.
 DATASET_DIR=/workspace/zhangbin/dataset_robin/flowers
@@ -37,11 +37,11 @@ DATASET_DIR=/workspace/zhangbin/dataset_robin/flowers
 if [ ! -d "$PRETRAINED_CHECKPOINT_DIR" ]; then
   mkdir ${PRETRAINED_CHECKPOINT_DIR}
 fi
-if [ ! -f ${PRETRAINED_CHECKPOINT_DIR}/inception_v1.ckpt ]; then
-  wget http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz
-  tar -xvf inception_v1_2016_08_28.tar.gz
-  mv inception_v1.ckpt ${PRETRAINED_CHECKPOINT_DIR}/inception_v1.ckpt
-#  rm inception_v1_2016_08_28.tar.gz
+if [ ! -f ${PRETRAINED_CHECKPOINT_DIR}/mobilenet_v1_1.0_224.ckpt ]; then
+  #wget http://download.tensorflow.org/models/mobilenet_v1_1.0_224_2017_06_14.tar.gz
+  tar -xvf mobilenet_v1_1.0_224_2017_06_14.tar.gz
+  #mv inception_v1.ckpt ${PRETRAINED_CHECKPOINT_DIR}/inception_v1.ckpt
+  #rm inception_v1_2016_08_28.tar.gz
 fi
 
 # Download the dataset
@@ -55,10 +55,10 @@ python train_image_classifier.py \
   --dataset_name=flowers \
   --dataset_split_name=train \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=inception_v1 \
-  --checkpoint_path=${PRETRAINED_CHECKPOINT_DIR}/inception_v1.ckpt \
-  --checkpoint_exclude_scopes=InceptionV1/Logits \
-  --trainable_scopes=InceptionV1/Logits \
+  --model_name=mobilenet_v1 \
+  --checkpoint_path=${PRETRAINED_CHECKPOINT_DIR}/mobilenet_v1_1.0_224.ckpt \
+  --checkpoint_exclude_scopes=MobilenetV1/Logits \
+  --trainable_scopes=MobilenetV1/Logits \
   --max_number_of_steps=3000 \
   --batch_size=32 \
   --learning_rate=0.01 \
@@ -76,7 +76,7 @@ python eval_image_classifier.py \
   --dataset_name=flowers \
   --dataset_split_name=validation \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=inception_v1
+  --model_name=mobilenet_v1
 
 # Fine-tune all the new layers for 1000 steps.
 python train_image_classifier.py \
@@ -85,7 +85,7 @@ python train_image_classifier.py \
   --dataset_split_name=train \
   --dataset_dir=${DATASET_DIR} \
   --checkpoint_path=${TRAIN_DIR} \
-  --model_name=inception_v1 \
+  --model_name=mobilenet_v1 \
   --max_number_of_steps=1000 \
   --batch_size=32 \
   --learning_rate=0.001 \
@@ -103,4 +103,4 @@ python eval_image_classifier.py \
   --dataset_name=flowers \
   --dataset_split_name=validation \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=inception_v1
+  --model_name=mobilenet_v1
