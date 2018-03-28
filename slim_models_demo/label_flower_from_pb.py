@@ -11,11 +11,12 @@ import time
 from tensorflow.python.platform import gfile
 import os
 from datasets import imagenet
-# 下载模型
+
+
+# load the graph from pb file
 def load_graph(model_file):
   graph = tf.Graph()
   graph_def = tf.GraphDef()
-
   with open(model_file, "rb") as f:
     graph_def.ParseFromString(f.read())
   with graph.as_default():
@@ -25,29 +26,26 @@ def load_graph(model_file):
         ops = sess.graph.get_operations()
         for op in ops:
             print(op.name)
-
   return graph, output_tensor,input_tensor
 
-# 识别手势
+# classify the picture and print the result
 def recognize(jpg_path, pb_file_path):
   with tf.Graph().as_default():
       
       graph, output_tensor,input_tensor = load_graph(pb_file_path)
 
-      
       with tf.Session(graph=graph) as sess:
-#           # 获取输入张量
+#           # get the input tensor operation
 #           input_x = graph.get_tensor_by_name("import/DecodeJpeg/contents:0")
-#           # 获取输出张量
-#           output = graph.get_tensor_by_name("final_training_ops/Softmax:0")
-          # 读入待识别图片
+#           # get the output tensor operation
+#           output = graph.get_tensor_by_name("import/Softmax:0")
+          # read the image
           image_data = gfile.FastGFile(jpg_path, 'rb').read()
           t1 = time.time()
           pre = sess.run(output_tensor, feed_dict={input_tensor:image_data})
           t2 = time.time()
           writer = tf.summary.FileWriter("./logs_from_pb", graph=tf.get_default_graph())
           
-#           print(pre)
           results = np.squeeze(pre)
           prediction_labels = np.argmax(results, axis=0)
           names = imagenet.create_readable_names_for_imagenet_labels()
@@ -58,9 +56,7 @@ def recognize(jpg_path, pb_file_path):
           print('probability: %s: %.3g, running time: %.3g' % (names[prediction_labels+1],results[prediction_labels], t2-t1))
           
 
-
 if __name__=="__main__":
-  
   jpg_path = "First_Student_IC_school_bus_202076.jpg"
   pb_file_path=os.path.join("../tmp/checkpoints", 'vgg_16_freeze_graph.pb')
   recognize(jpg_path, pb_file_path)
