@@ -10,7 +10,15 @@ from nets import nets_factory
 from preprocessing import preprocessing_factory
 from datasets import imagenet
 slim = tf.contrib.slim
+'''
+usage for test_image_classifier.py
 
+python test_image_classifier.py \
+--checkpoint_path={your checkpoint path or ckpt file} \
+--test_path={your test path} \
+--num_classes={your class classifier} \
+--model_name={your model name}
+'''
 tf.app.flags.DEFINE_string(
     'master', '', 'The address of the TensorFlow master to use.')
 
@@ -70,19 +78,28 @@ def main(_):
 
         test_image_size = FLAGS.test_image_size or network_fn.default_image_size
 
+	###########################
+        # get the checkpoint file #
+        ###########################
         if tf.gfile.IsDirectory(FLAGS.checkpoint_path):
             checkpoint_path = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
         else:
             checkpoint_path = FLAGS.checkpoint_path
-			
-		print("restore from",checkpoint_path) 
+	print("restore from",checkpoint_path) 
+	
         tf.Graph().as_default()
         with tf.Session() as sess:
+	    ################################
+            # open the file and preprocess #
+            ################################
             image = open(FLAGS.test_path, 'rb').read()
             image = tf.image.decode_jpeg(image, channels=3)
             processed_image = image_preprocessing_fn(image, test_image_size, test_image_size)
             processed_images = tf.expand_dims(processed_image, 0)
             
+	    #############################################
+            # build the network and restore the network #
+            #############################################
             logits, _ = network_fn(processed_images)
             probabilities = tf.nn.softmax(logits)
             saver = tf.train.Saver()
