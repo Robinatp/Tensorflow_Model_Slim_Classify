@@ -98,3 +98,13 @@ academic gown 0.0103581
 pickelhaube 0.00800818
 bulletproof vest 0.0053509
 ```
+Run by yourself on python ,you should use command as flows:
+
+python tools/label_image/label_image.py \
+    --image=/workspace/zhangbin/dataset_robin/flowers/flower_photos/daisy/21652746_cc379e0eea_m.jpg \
+    --graph=/workspace/zhangbin/master/models/research/slim/tmp/frozen_graph.pb  \
+    --labels=/workspace/zhangbin/dataset_robin/flowers/labels.txt \
+    --input_height=224 \
+    --input_width=224 \
+    --input_layer="input" \
+    --output_layer="SqueezeNet/Predictions/Reshape_1"
