@@ -32,6 +32,7 @@ from nets import resnet_v2
 from nets import vgg
 from nets.mobilenet import mobilenet_v2
 from nets import shufflenet
+from nets import squeezenet
 from nets.nasnet import nasnet
 
 slim = tf.contrib.slim
@@ -65,6 +66,7 @@ networks_map = {'alexnet_v2': alexnet.alexnet_v2,
                 'nasnet_mobile': nasnet.build_nasnet_mobile,
                 'nasnet_large': nasnet.build_nasnet_large,
                 'shufflenet': shufflenet.shufflenet_g3,
+                'squeezenet': squeezenet.squeezenet,
                }
 
 arg_scopes_map = {'alexnet_v2': alexnet.alexnet_v2_arg_scope,
@@ -97,6 +99,7 @@ arg_scopes_map = {'alexnet_v2': alexnet.alexnet_v2_arg_scope,
                   'nasnet_mobile': nasnet.nasnet_mobile_arg_scope,
                   'nasnet_large': nasnet.nasnet_large_arg_scope,
                   'shufflenet': shufflenet.shufflenet_arg_scope,
+                  'squeezenet': squeezenet.squeezenet_arg_scope,
                  }
 
 

@@ -2,10 +2,11 @@
 import tensorflow as tf
 import numpy as np
 import os
+import argparse
 
 
 # print all op names
-def print_ops(pb_path):
+def print_ops(pb_path,output_layer):
     with tf.gfile.FastGFile(os.path.join(pb_path), 'rb') as f:
         graph_def = tf.GraphDef()
         graph_def.ParseFromString(f.read())
@@ -17,7 +18,19 @@ def print_ops(pb_path):
         for op in ops:
             print(op.name)
 
-        writer =tf.summary.FileWriter("log_print_ops/",sess.graph)
+        writer =tf.summary.FileWriter("log_print_ops/",graph = sess.graph)
         writer.close()
+        
+        graph = tf.get_default_graph()
+        input = graph.get_tensor_by_name(output_layer)
+        print(input)
 
-print_ops('model/freeze_model.pb')
+
+
+if __name__ == "__main__":
+  parser = argparse.ArgumentParser()
+ 
+  parser.add_argument("--pb_path", default='tmp/frozen_graph.pb',help="name of pb_path")
+  parser.add_argument("--output_layer",default='MobilenetV1/Predictions/Reshape_1:0', help="name of output layer")
+  args = parser.parse_args()
+print_ops(args.pb_path,args.output_layer)
