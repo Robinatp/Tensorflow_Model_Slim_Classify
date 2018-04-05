@@ -126,7 +126,8 @@ def squeezenet(inputs,
                     net = slim.dropout(net,keep_prob=dropout_keep_prob, scope="dropout")
 
                 # conv10
-                net = slim.conv2d(net, num_classes, [1, 1], stride=1, padding="SAME", scope="conv10")
+                net = slim.conv2d(net, num_classes, [1, 1],  activation_fn=None,
+                          normalizer_fn=None,stride=1, padding="SAME", scope="conv10")
                 
                 # Convert end_points_collection into a dictionary of end_points.
                 end_points = slim.utils.convert_collection_to_dict(end_points_collection)
