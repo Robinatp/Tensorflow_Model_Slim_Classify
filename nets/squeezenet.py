@@ -11,9 +11,6 @@ import functools
 import tensorflow as tf
 import numpy as np
 
-def print_activations(t):
-    print(t.op.name, ' ', t.get_shape().as_list())
-
 @slim.add_arg_scope
 def _fire_module(inputs, 
                  squeeze_depth,
@@ -26,7 +23,7 @@ def _fire_module(inputs,
     
     Arguments:
         x                 : input
-        nb_squeeze_filter : number of filters of squeeze. The filtersize of expand is 4 times of squeeze
+        squeeze_depth     : number of filters of squeeze. The filtersize of expand is 4 times of squeeze
         use_bypass        : if True then a bypass will be added
         name              : name of module e.g. fire123
     
@@ -47,6 +44,7 @@ def _fire_module(inputs,
             # concat
             x_ret= tf.concat([expand_1x1, expand_3x3], axis=3)
             
+            # fire 3/5/7/9
             if use_bypass:
                 x_ret = x_ret + inputs
         return slim.utils.collect_named_outputs(outputs_collections, sc.name, x_ret)
@@ -54,7 +52,7 @@ def _fire_module(inputs,
 def squeezenet(inputs, 
                num_classes=1000, 
                compression=1.0,
-               use_bypass=False,
+               use_bypass=True,
                dropout_keep_prob=0.9,
                is_training=True,
                prediction_fn=tf.contrib.layers.softmax,
@@ -62,24 +60,23 @@ def squeezenet(inputs,
                scope='SqueezeNet',
                global_pool=True):
     """
-    Creating a SqueezeNet of version 1.0
+    Creating a SqueezeNet of version 1.0 or version 1.1
     
     Arguments:
         input_shape  : shape of the input images e.g. (224,224,3)
-        nb_classes   : number of classes
+        num_classes   : number of classes
         use_bypass   : if true, bypass connections will be created at fire module 3, 5, 7, and 9 (default: False)
         dropout_rate : defines the dropout rate that is accomplished after last fire module (default: None)
         compression  : reduce the number of feature-maps (default: 1.0)
         
     Returns:
-        Model        : Keras model instance
+        logits        : the final feature-maps tensor
     """
     input_shape = inputs.get_shape().as_list()
     if len(input_shape) != 4:
         raise ValueError('Invalid input tensor rank, expected 4, was: %d' %
                      len(input_shape))
     
-    end_points = {}
     with tf.variable_scope(scope, 'SqueezeNet', [inputs]) as sc: 
         end_points_collection = sc.original_name_scope + '_end_points' 
         with slim.arg_scope([slim.conv2d,slim.avg_pool2d,slim.max_pool2d,_fire_module],
@@ -124,27 +121,34 @@ def squeezenet(inputs,
                 # dropout
                 if dropout_keep_prob:
                     net = slim.dropout(net,keep_prob=dropout_keep_prob, scope="dropout")
-
                 # conv10
-                net = slim.conv2d(net, num_classes, [1, 1],  activation_fn=None,
-                          normalizer_fn=None,stride=1, padding="SAME", scope="conv10")
+                net = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+                                          normalizer_fn=None, scope='conv10')
                 
                 # Convert end_points_collection into a dictionary of end_points.
                 end_points = slim.utils.convert_collection_to_dict(end_points_collection)
                 
-                # avgpool10
-                if global_pool:
-                    # Global average pooling.
-                    net = slim.avg_pool2d(net, [13, 13], stride=1, scope="avgpool10")
-                    end_points['global_pool'] = net
-                if not num_classes:
-                    return net, end_points
-                
-                # squeeze the axis
-                if spatial_squeeze:
-                    logits = tf.squeeze(net, [1, 2], name='SpatialSqueeze')
-                    end_points["logits"]= logits
-                
+                with tf.variable_scope('Logits'):
+                    # avgpool10
+                    if global_pool:
+                        # Global average pooling.
+                        net = tf.reduce_mean(net, [1, 2], name='pool10', keep_dims=True)
+                        end_points['global_pool'] = net
+                    if not num_classes:
+                        return net, end_points
+                    
+#                     # dropout
+#                     if dropout_keep_prob:
+#                         net = slim.dropout(net,keep_prob=dropout_keep_prob, scope="dropout")
+#                     # conv10
+#                     net = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+#                                           normalizer_fn=None, scope='conv10')
+                        
+                    # squeeze the axis
+                    if spatial_squeeze:
+                        logits = tf.squeeze(net, [1, 2], name='SpatialSqueeze')
+                        
+                end_points["Logits"]= logits
                 if prediction_fn:
                     end_points['Predictions'] = prediction_fn(logits, scope='Predictions')
             
@@ -166,12 +170,13 @@ def squeezenet_arg_scope(is_training = True,
         'scale': batch_norm_scale,
         'updates_collections': tf.GraphKeys.UPDATE_OPS,
     }
-    with  slim.arg_scope([slim.conv2d],
-                   activation_fn=tf.nn.relu,
-                   weights_regularizer=slim.l2_regularizer(weight_decay),
-                   biases_initializer=tf.zeros_initializer(),
-                   normalizer_fn=slim.batch_norm if use_batch_norm else None,
-                   normalizer_params=batch_norm_params):
+    with slim.arg_scope(
+            [slim.conv2d],
+            activation_fn=tf.nn.relu,
+            weights_regularizer=slim.l2_regularizer(weight_decay),
+            weights_initializer=slim.variance_scaling_initializer(),
+            normalizer_fn=slim.batch_norm if use_batch_norm else None,
+            normalizer_params=batch_norm_params):
         with slim.arg_scope([slim.batch_norm], **batch_norm_params) as arg_sc:
             return arg_sc
 

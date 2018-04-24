@@ -104,3 +104,9 @@ python eval_image_classifier.py \
   --dataset_split_name=validation \
   --dataset_dir=${DATASET_DIR} \
   --model_name=mobilenet_v1
+python test_image_classifier.py \
+    --checkpoint_path=${TRAIN_DIR}/all \
+    --test_path=/workspace/zhangbin/dataset_robin/flowers/flower_photos/roses/3550491463_3eb092054c_m.jpg \
+    --num_classes=5 \
+    --label_path=/workspace/zhangbin/dataset_robin/flowers/labels.txt \
+    --model_name=mobilenet_v1

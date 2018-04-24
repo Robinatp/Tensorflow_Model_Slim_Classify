@@ -95,24 +95,27 @@ def shuffle_stage(inputs, depth, groups, repeat, shuffle=True, scope=None):
         return net   
 
 def shufflenet(inputs, 
-               num_classes=None, 
+               num_classes=1000,
+               dropout_keep_prob=0.90, 
+               is_training=True,
                shuffle=True, 
                base_ch=144, 
                groups=1, 
-               is_training=True,
                prediction_fn=tf.contrib.layers.softmax,
-               scope=None):
+               spatial_squeeze=True,
+               reuse=None,
+               scope='ShuffleNet',
+               global_pool=True):
     input_shape = inputs.get_shape().as_list()
     if len(input_shape) != 4:
         raise ValueError('Invalid input tensor rank, expected 4, was: %d' %
                      len(input_shape))
           
-    with tf.variable_scope(scope, 'ShuffleNet', [inputs]) as sc:
-        end_points_collection = sc.original_name_scope + '_end_points'
-        print(end_points_collection)    
+    with tf.variable_scope(scope, 'ShuffleNet', [inputs], reuse=reuse) as sc:
+        end_points_collection = sc.original_name_scope + '_end_points' 
         with slim.arg_scope([slim.conv2d,slim.avg_pool2d,slim.max_pool2d,shuffle_bottleneck],
                             outputs_collections = [end_points_collection]):
-            with slim.arg_scope([slim.batch_norm], is_training=is_training):
+            with slim.arg_scope([slim.batch_norm, slim.dropout], is_training=is_training):
             
                 with tf.variable_scope('Stage1'):
                     net = slim.conv2d(inputs, 24, [3, 3], stride = 2, scope= "conv1")
@@ -126,17 +129,25 @@ def shufflenet(inputs,
                 # Convert end_points_collection into a dictionary of end_points.
                 end_points = slim.utils.convert_collection_to_dict(end_points_collection)
         
-                with tf.variable_scope('Stage5'):
-                    net = tf.reduce_mean(net, [1, 2],name='global_pool')
-                    end_points['global_pool'] = net
+                with tf.variable_scope('Stage5'):      
+                    if global_pool:
+                        # Global average pooling.
+                        net = tf.reduce_mean(net, [1, 2], name='global_pool', keep_dims=True)
+                        end_points['global_pool'] = net
+                    if not num_classes:
+                        return net, end_points
+                    
+                    net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
+                    logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+                                        normalizer_fn=None, scope='logits')
+                    if spatial_squeeze:
+                        logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
                 
-                    logits = slim.fully_connected(net, num_classes,scope='logits')
-                    end_points[sc.name + '/logits'] = logits
-                    if prediction_fn:
-                        end_points['Predictions'] = prediction_fn(logits, scope='Predictions')
+                end_points['Logits'] = logits
+                if prediction_fn:
+                    end_points['predictions'] = prediction_fn(logits, scope='predictions')
 
-
-                return logits, end_points
+            return logits, end_points
 
 shufflenet.default_image_size = 224    
 

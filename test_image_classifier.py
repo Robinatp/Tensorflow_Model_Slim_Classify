@@ -9,6 +9,7 @@ import numpy as np
 from nets import nets_factory
 from preprocessing import preprocessing_factory
 from datasets import imagenet
+from matplotlib import pyplot as plt
 slim = tf.contrib.slim
 '''
 usage for test_image_classifier.py
@@ -23,15 +24,15 @@ tf.app.flags.DEFINE_string(
     'master', '', 'The address of the TensorFlow master to use.')
 
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', '../tmp/checkpoints/with_placeholder',
+    'checkpoint_path', '/home/zhangbin/GitHub/models/research/slim/tmp/inception_finetuned/',
     'The directory where the model was written to or an absolute path to a '
     'checkpoint file.')
 
 tf.app.flags.DEFINE_string(
-    'test_path', 'First_Student_IC_school_bus_202076.jpg', 'Test image path.')
+    'test_path', '4363734507_5cc4ed6e01.jpg', 'Test image path.')
 
 tf.app.flags.DEFINE_integer(
-    'num_classes', 1000, 'Number of classes.')
+    'num_classes', 5, 'Number of classes.')
 
 tf.app.flags.DEFINE_integer(
     'labels_offset', 0,
@@ -40,7 +41,10 @@ tf.app.flags.DEFINE_integer(
     'class for the ImageNet dataset.')
 
 tf.app.flags.DEFINE_string(
-    'model_name', 'vgg_16', 'The name of the architecture to evaluate.')
+    'model_name', 'inception_v1', 'The name of the architecture to evaluate.')
+
+tf.app.flags.DEFINE_string(
+    'label_path', '/home/zhangbin/GitHub/models/research/slim/tmp/flower_photos/labels.txt', 'The path of the label.')
 
 tf.app.flags.DEFINE_string(
     'preprocessing_name', None, 'The name of the preprocessing to use. If left '
@@ -50,6 +54,14 @@ tf.app.flags.DEFINE_integer(
     'test_image_size', None, 'Eval image size')
 
 FLAGS = tf.app.flags.FLAGS
+
+
+def load_labels(label_file):
+  label = []
+  proto_as_ascii_lines = tf.gfile.GFile(label_file).readlines()
+  for l in proto_as_ascii_lines:
+    label.append(l.rstrip())
+  return label
 
 
 def main(_):
@@ -78,28 +90,18 @@ def main(_):
 
         test_image_size = FLAGS.test_image_size or network_fn.default_image_size
 
-	###########################
-        # get the checkpoint file #
-        ###########################
         if tf.gfile.IsDirectory(FLAGS.checkpoint_path):
             checkpoint_path = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
         else:
             checkpoint_path = FLAGS.checkpoint_path
-	print("restore from",checkpoint_path) 
-	
+        print("restore from",checkpoint_path) 
         tf.Graph().as_default()
         with tf.Session() as sess:
-	    ################################
-            # open the file and preprocess #
-            ################################
             image = open(FLAGS.test_path, 'rb').read()
             image = tf.image.decode_jpeg(image, channels=3)
             processed_image = image_preprocessing_fn(image, test_image_size, test_image_size)
             processed_images = tf.expand_dims(processed_image, 0)
             
-	    #############################################
-            # build the network and restore the network #
-            #############################################
             logits, _ = network_fn(processed_images)
             probabilities = tf.nn.softmax(logits)
             saver = tf.train.Saver()
@@ -107,13 +109,28 @@ def main(_):
             
             np_image, network_input, predictions = sess.run([image, processed_image, probabilities])
             probabilities = np.squeeze(predictions,0)
-            names = imagenet.create_readable_names_for_imagenet_labels()
             
-            pre = np.argmax(probabilities, axis=0)
-            print('{} {}  {}'.format(FLAGS.test_path,pre ,names[pre+1]))
-            top_k = probabilities.argsort()[-5:][::-1]
-            for index in top_k:
-                print('Probability %0.2f => [%s]' % (probabilities[index], names[index+1]))
+#             plt.imshow( network_input / (network_input.max() - network_input.min()) )
+#             plt.suptitle("Resized, Cropped and Mean-Centered input to network",
+#                          fontsize=14, fontweight='bold')
+#             plt.axis('off')
+#             plt.show()
+    
+            if FLAGS.num_classes ==1000:
+                names = imagenet.create_readable_names_for_imagenet_labels()
+                pre = np.argmax(probabilities, axis=0)
+                print('{} {}  {}'.format(FLAGS.test_path,pre ,names[pre+1]))
+                top_k = probabilities.argsort()[-5:][::-1]
+                for index in top_k:
+                    print('Probability %0.2f => [%s]' % (probabilities[index], names[index+1]))
+            else:
+                names = load_labels(FLAGS.label_path)
+                pre = np.argmax(probabilities, axis=0)
+                print('{} {}  {}'.format(FLAGS.test_path,pre ,names[pre]))
+                top_k = probabilities.argsort()[-5:][::-1]
+                for index in top_k:
+                    print('Probability %0.2f => [%s]' % (probabilities[index], names[index]))
+            
 
 if __name__ == '__main__':
     tf.app.run()

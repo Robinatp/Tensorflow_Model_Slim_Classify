@@ -25,13 +25,13 @@
 #set -e
 
 # Where the pre-trained InceptionV1 checkpoint is saved to.
-PRETRAINED_CHECKPOINT_DIR=./tmp/checkpoints/squeezenet
+PRETRAINED_CHECKPOINT_DIR=./tmp/checkpoints/shufflenet
 
 # Where the training (fine-tuned) checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/flowers-models/squeezenet
+TRAIN_DIR=./tmp/imagenet-models/shufflenet
 
 # Where the dataset is saved to.
-DATASET_DIR=/workspace/zhangbin/dataset_robin/flowers
+DATASET_DIR=/workspace/zhangbin/dataset_robin/imagenet-data/raw-data/tfrecod
 
 if [ 0>1 ]; then
 # Download the pre-trained checkpoint.
@@ -83,13 +83,13 @@ python eval_image_classifier.py \
 # Fine-tune all the new layers for 1000 steps.
 python train_image_classifier.py \
   --train_dir=${TRAIN_DIR}/all \
-  --dataset_name=flowers \
-  --dataset_split_name=train \
+  --dataset_name=imagenet \
+  --dataset_split_name=validation \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=squeezenet \
+  --model_name=shufflenet \
   --max_number_of_steps=300000 \
   --batch_size=32 \
-  --learning_rate=0.0004 \
+  --learning_rate=0.0001 \
   --save_interval_secs=600 \
   --save_summaries_secs=6000 \
   --log_every_n_steps=1 \
@@ -101,23 +101,7 @@ python train_image_classifier.py \
 python eval_image_classifier.py \
   --checkpoint_path=${TRAIN_DIR}/all \
   --eval_dir=${TRAIN_DIR}/all \
-  --dataset_name=flowers \
+  --dataset_name=imagenet \
   --dataset_split_name=validation \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=squeezenet
-
-#run label image test
-python tools/label_image/label_image.py \
-    --image=/workspace/zhangbin/dataset_robin/flowers/flower_photos/daisy/21652746_cc379e0eea_m.jpg \
-    --graph=/workspace/zhangbin/master/models/research/slim/tmp/frozen_graph.pb  \
-    --labels=/workspace/zhangbin/dataset_robin/flowers/labels.txt \
-    --input_height=224 \
-    --input_width=224 \
-    --input_layer="input" \
-    --output_layer="SqueezeNet/Predictions/Reshape_1" 
-python test_image_classifier.py \
-    --checkpoint_path=${TRAIN_DIR}/all \
-    --test_path=/workspace/zhangbin/dataset_robin/flowers/flower_photos/roses/15202632426_d88efb321a_n.jpg \
-    --num_classes=5 \
-    --label_path=/workspace/zhangbin/dataset_robin/flowers/labels.txt \
-    --model_name=squeezenet
+  --model_name=shufflenet

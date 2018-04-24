@@ -176,6 +176,7 @@ class ShuffleNetTest(tf.test.TestCase):
   
     with slim.arg_scope(shufflenet.shufflenet_arg_scope()):
         logits, end_points= shufflenet.shufflenet_g3(inputs,num_classes=1000) 
+        print(logits)
     
     print("Layers")
     for k, v in end_points.items():
