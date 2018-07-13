@@ -1,0 +1,9 @@
+#wget -t 0 -c -i http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_val.tar
+#wget -t 0 -c -i http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_test.tar
+wget -t 0 -c -i http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_train.tar
+#wget -t 0 -c -i http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_train_t3.tar
+#wget -t 0 -c -i http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_bbox_train_v2.tar.gz
+#wget -t 0 -c -i http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_bbox_train_dogs.tar.gz
+#wget -t 0 -c -i http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_bbox_val_v3.tgz
+#wget -t 0 -c -i http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_bbox_test_dogs.zip
+#wget -t 0 -c -i http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_devkit_t12.tar
