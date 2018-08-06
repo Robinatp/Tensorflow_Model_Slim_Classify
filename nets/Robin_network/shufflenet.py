@@ -58,7 +58,6 @@ def shuffle_bottleneck(inputs, depth_bottleneck, group, stride, shuffle=True, ou
         assert 0 == depth_bottleneck % group, "Output channels must be a multiple of groups"
 
         with tf.variable_scope(scope, 'Unit', [inputs]) as sc:
-            print("shuffle_bottleneck",sc.name)
             if 1 != stride:
                 net_skip = slim.avg_pool2d(inputs, [3, 3], stride, padding="SAME", scope='3x3AVGPool2D')
             else:
@@ -69,12 +68,21 @@ def shuffle_bottleneck(inputs, depth_bottleneck, group, stride, shuffle=True, ou
             if shuffle:
                 net = channel_shuffle_v1(net, depth_bottleneck, group)
 
-            with tf.variable_scope("3x3DWConv"):
-                depthwise_filter = tf.get_variable("depth_conv_w", [3, 3, depth_bottleneck, 1],
-                                                   initializer=tf.truncated_normal_initializer(stddev=0.01))
-                net = tf.nn.depthwise_conv2d(net, depthwise_filter, [1, stride, stride, 1], 'SAME', name="DWConv")
-                # Todo: Add batch norm here
-                net = slim.batch_norm(net, activation_fn = None)
+#             with tf.variable_scope("3x3DWConv"):
+#                 depthwise_filter = tf.get_variable("depth_conv_w", [3, 3, depth_bottleneck, 1],
+#                                                    initializer=tf.truncated_normal_initializer(stddev=0.01))
+#                 net = tf.nn.depthwise_conv2d(net, depthwise_filter, [1, stride, stride, 1], 'SAME', name="DWConv")
+#                 # Todo: Add batch norm here
+#                 net = slim.batch_norm(net, activation_fn = None)
+
+            # separable_conv2d produces only a depthwise convolution layer
+            net = slim.separable_conv2d(net, None, [3, 3],
+                                        depth_multiplier=1,
+                                        stride=stride,
+                                        rate=1,
+                                        normalizer_fn=slim.batch_norm,
+                                        activation_fn=None,
+                                        scope="3x3DWConv")
 
             net = group_pointwise_conv2d(net, depth_bottleneck, 1, group,relu=False, scope="1x1GConvOut")
             
@@ -114,7 +122,7 @@ def shufflenet(inputs,
           
     with tf.variable_scope(scope, 'ShuffleNet', [inputs], reuse=reuse) as sc:
         end_points_collection = sc.original_name_scope + '_end_points' 
-        with slim.arg_scope([slim.conv2d,slim.avg_pool2d,slim.max_pool2d,shuffle_bottleneck],
+        with slim.arg_scope([slim.conv2d,slim.separable_conv2d,slim.avg_pool2d,slim.max_pool2d,shuffle_bottleneck],
                             outputs_collections = [end_points_collection]):
             with slim.arg_scope([slim.batch_norm, slim.dropout], is_training=is_training):
             
@@ -130,14 +138,14 @@ def shufflenet(inputs,
                 # Convert end_points_collection into a dictionary of end_points.
                 end_points = slim.utils.convert_collection_to_dict(end_points_collection)
         
-                with tf.variable_scope('Stage5'):      
+                with tf.variable_scope('Logits'):      
                     if global_pool:
                         # Global average pooling.
                         net = tf.reduce_mean(net, [1, 2], name='global_pool', keep_dims=True)
                         end_points['global_pool'] = net
                     if not num_classes:
                         return net, end_points
-                    
+                    # 1 x 1 x channel_dimensions
                     net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
                     logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
                                         normalizer_fn=None, scope='logits')
@@ -213,6 +221,6 @@ if __name__ == "__main__":
     with tf.Session() as sess:
         sess.run(init)
         pred = sess.run(end_points['predictions'])
-        print(pred)
+#         print(pred)
         print(np.argmax(pred,1))
         print(pred[:,np.argmax(pred,1)])
