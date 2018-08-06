@@ -6,18 +6,20 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import numpy as np
 
+
+@slim.add_arg_scope
 def fire_module(inputs,
                 squeeze_depth,
                 expand_depth,
                 reuse=None,
                 scope=None,
                 outputs_collections=None):
-    with tf.variable_scope(scope, 'fire', [inputs], reuse=reuse):
+    with tf.variable_scope(scope, 'fire', [inputs], reuse=reuse)as sc:
         with slim.arg_scope([slim.conv2d, slim.max_pool2d],
                             outputs_collections=None):
             net = squeeze(inputs, squeeze_depth)
             outputs = expand(net, expand_depth)
-            return outputs
+            return slim.utils.collect_named_outputs(outputs_collections, sc.name, outputs)
 
 def squeeze(inputs, num_outputs):
     return slim.conv2d(inputs, num_outputs, [1, 1], stride=1, scope='squeeze')
@@ -44,38 +46,47 @@ def inference(images, keep_probability, phase_train=True, bottleneck_layer_size=
                         weights_regularizer=slim.l2_regularizer(weight_decay),
                         normalizer_fn=slim.batch_norm,
                         normalizer_params=batch_norm_params):
-        with tf.variable_scope('squeezenet', [images], reuse=reuse):
-            with slim.arg_scope([slim.batch_norm, slim.dropout],
-                                is_training=phase_train):
-                net = slim.conv2d(images, 96, [7, 7], stride=2, scope='conv1')
-                net = slim.max_pool2d(net, [3, 3], stride=2, scope='maxpool1')
-                net = fire_module(net, 16, 64, scope='fire2')
-                net = fire_module(net, 16, 64, scope='fire3')
-                net = fire_module(net, 32, 128, scope='fire4')
-                net = slim.max_pool2d(net, [2, 2], stride=2, scope='maxpool4')
-                net = fire_module(net, 32, 128, scope='fire5')
-                net = fire_module(net, 48, 192, scope='fire6')
-                net = fire_module(net, 48, 192, scope='fire7')
-                net = fire_module(net, 64, 256, scope='fire8')
-                net = slim.max_pool2d(net, [3, 3], stride=2, scope='maxpool8')
-                net = fire_module(net, 64, 256, scope='fire9')
-                net = slim.dropout(net, keep_probability)
-                net = slim.conv2d(net, 1000, [1, 1], activation_fn=None, normalizer_fn=None, scope='conv10')
-                net = slim.avg_pool2d(net, net.get_shape()[1:3], scope='avgpool10')
-                net = tf.squeeze(net, [1, 2], name='logits')
-                net = slim.fully_connected(net, bottleneck_layer_size, activation_fn=None, 
-                        scope='Bottleneck', reuse=False)
-    return net, None
+        with tf.variable_scope('squeezenet', [images], reuse=reuse) as sc:
+            end_points_collection = sc.original_name_scope + '_end_points' 
+            with slim.arg_scope([slim.conv2d,slim.avg_pool2d,slim.max_pool2d,fire_module],
+                            outputs_collections = [end_points_collection]):
+                with slim.arg_scope([slim.batch_norm, slim.dropout],
+                                    is_training=phase_train):
+                    net = slim.conv2d(images, 96, [7, 7], stride=2, scope='conv1')
+                    net = slim.max_pool2d(net, [3, 3], stride=2, scope='maxpool1')
+                    net = fire_module(net, 16, 64, scope='fire2')
+                    net = fire_module(net, 16, 64, scope='fire3')
+                    net = fire_module(net, 32, 128, scope='fire4')
+                    net = slim.max_pool2d(net, [2, 2], stride=2, scope='maxpool4')
+                    net = fire_module(net, 32, 128, scope='fire5')
+                    net = fire_module(net, 48, 192, scope='fire6')
+                    net = fire_module(net, 48, 192, scope='fire7')
+                    net = fire_module(net, 64, 256, scope='fire8')
+                    net = slim.max_pool2d(net, [3, 3], stride=2, scope='maxpool8')
+                    net = fire_module(net, 64, 256, scope='fire9')
+                    net = slim.dropout(net, keep_probability)
+                    net = slim.conv2d(net, 1000, [1, 1], activation_fn=None, normalizer_fn=None, scope='conv10')
+                    net = slim.avg_pool2d(net, net.get_shape()[1:3], scope='avgpool10')
+                    net = tf.squeeze(net, [1, 2], name='logits')
+                    net = slim.fully_connected(net, bottleneck_layer_size, activation_fn=None, 
+                            scope='Bottleneck', reuse=False)
+                    # Convert end_points_collection into a dictionary of end_points.
+                    end_points = slim.utils.convert_collection_to_dict(end_points_collection)
+    return net, end_points
 
 
 
 if __name__ == "__main__":
     inputs = tf.random_normal([1, 160, 160, 3])
 
-    logits, _= inference(inputs, keep_probability=1.0, phase_train=False, bottleneck_layer_size=128, weight_decay=0.0, reuse=None)
+    logits, end_points= inference(inputs, keep_probability=1.0, phase_train=False, bottleneck_layer_size=128, weight_decay=0.0, reuse=None)
       
     writer = tf.summary.FileWriter("./logs_squeezenet", graph=tf.get_default_graph())
       
+    print("Layers")
+    for k, v in end_points.items():
+        print('name = {}, shape = {}'.format(v.name, v.get_shape()))
+    
     print("Parameters")
     for v in slim.get_model_variables():
         print('name = {}, shape = {}'.format(v.name, v.get_shape()))
