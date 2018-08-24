@@ -50,7 +50,7 @@ def group_pointwise_conv2d(inputs, depth, stride, group, relu=True, scope=None):
         return net    
     
 @slim.add_arg_scope
-def shuffle_bottleneck(inputs, depth_bottleneck, group, stride, shuffle=True, outputs_collections = None, scope= None):
+def shuffle_bottleneck(inputs, depth_bottleneck, group, stride, shuffle=True, groups_in=None, outputs_collections = None, scope= None):
         if 1 != stride:
             _b, _h, _w, _c = inputs.get_shape().as_list()
             depth_bottleneck = depth_bottleneck - _c
@@ -63,17 +63,11 @@ def shuffle_bottleneck(inputs, depth_bottleneck, group, stride, shuffle=True, ou
             else:
                 net_skip = inputs
 
-            net = group_pointwise_conv2d(inputs, depth_bottleneck, 1, group = (1 if (cmp(sc.name ,'ShuffleNet/Stage2/Unit0')== 0) else group), relu=True, scope="1x1GConvIn")
+            net = group_pointwise_conv2d(inputs, depth_bottleneck, 1, group = (1 if groups_in is None else group), relu=True, scope="1x1GConvIn")
 
             if shuffle:
                 net = channel_shuffle_v1(net, depth_bottleneck, group)
 
-#             with tf.variable_scope("3x3DWConv"):
-#                 depthwise_filter = tf.get_variable("depth_conv_w", [3, 3, depth_bottleneck, 1],
-#                                                    initializer=tf.truncated_normal_initializer(stddev=0.01))
-#                 net = tf.nn.depthwise_conv2d(net, depthwise_filter, [1, stride, stride, 1], 'SAME', name="DWConv")
-#                 # Todo: Add batch norm here
-#                 net = slim.batch_norm(net, activation_fn = None)
 
             # separable_conv2d produces only a depthwise convolution layer
             net = slim.separable_conv2d(net, None, [3, 3],
@@ -95,9 +89,9 @@ def shuffle_bottleneck(inputs, depth_bottleneck, group, stride, shuffle=True, ou
         return slim.utils.collect_named_outputs(outputs_collections, sc.name, out)
     
    
-def shuffle_stage(inputs, depth, groups, repeat, shuffle=True, scope=None):
+def shuffle_stage(inputs, depth, groups, repeat, shuffle=True,  groups_in=None,scope=None):
      with tf.variable_scope(scope,"Stage",[inputs]) as sc:
-        net = shuffle_bottleneck(inputs, depth, group = groups, stride = 2, shuffle=shuffle , scope='Unit{}'.format(0))
+        net = shuffle_bottleneck(inputs, depth, group = groups, stride = 2, shuffle=shuffle ,groups_in=groups_in, scope='Unit{}'.format(0))
         
         for i in range(repeat):
             net = shuffle_bottleneck(net, depth, group = groups, stride = 1, shuffle=shuffle , scope='Unit{}'.format(i + 1))   
@@ -130,7 +124,7 @@ def shufflenet(inputs,
                     net = slim.conv2d(inputs, 24, [3, 3], stride = 2, scope= "conv1")
                     net = slim.max_pool2d(net, [3, 3], stride = 2, padding='SAME', scope= "pool1")
         
-                net = shuffle_stage(net, depth = base_ch * 1, groups = groups, repeat = 3, scope='Stage2')
+                net = shuffle_stage(net, depth = base_ch * 1, groups = groups, repeat = 3, groups_in = 1, scope='Stage2')
                 net = shuffle_stage(net, depth = base_ch * 2, groups = groups, repeat = 7, scope='Stage3')
                 net = shuffle_stage(net, depth = base_ch * 4, groups = groups, repeat = 3, scope='Stage4')
     
@@ -205,7 +199,7 @@ if __name__ == "__main__":
     
     logits, end_points= shufflenet_g2(inputs,num_classes=1000)
     print(end_points['predictions'])   
-    writer = tf.summary.FileWriter("./logs_shufflenet", graph=tf.get_default_graph())
+    writer = tf.summary.FileWriter("./logs", graph=tf.get_default_graph())
     
     print("Layers")
     for k, v in end_points.items():
